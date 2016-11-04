@@ -8,8 +8,38 @@ use std::collections::BTreeMap;
 #[derive(Debug)]
 pub enum JsonError {
     PythonError(PyErr),
-    TypeError(String, Option<String>),
+    TypeError(String, PyResult<String>),
     DictKeyNotString(PyObject),
+}
+
+impl JsonError {
+    pub fn to_pyerr(&self, py: Python) -> PyErr {
+        match *self {
+            JsonError::PythonError(ref err) => err.clone_ref(py),
+            JsonError::TypeError(_, ref repr) => {
+                match *repr {
+                    Ok(ref repr) => {
+                        PyErr {
+                            ptype: cpython::exc::TypeError::type_object(py).into_object(),
+                            pvalue: Some(PyUnicode::new(py,
+                                                        &format!("{} is not JSON serializable",
+                                                                 repr))
+                                .into_object()),
+                            ptraceback: None,
+                        }
+                    }
+                    Err(ref err) => err.clone_ref(py),
+                }
+            }
+            JsonError::DictKeyNotString(_) => {
+                PyErr {
+                    ptype: cpython::exc::TypeError::type_object(py).into_object(),
+                    pvalue: Some(PyString::new(py, "keys must be a string").into_object()),
+                    ptraceback: None,
+                }
+            }
+        }
+    }
 }
 
 macro_rules! pytry {
@@ -80,15 +110,7 @@ pub fn to_json(py: Python, obj: PyObject) -> Result<Value, JsonError> {
     }
 
     // At this point we can't cast it, set up the error object
-    let repr = match obj.repr(py) {
-        Ok(val) => {
-            match val.to_string(py) {
-                Ok(val) => Some(val.into_owned()),
-                _ => None,
-            }
-        }
-        _ => None,
-    };
+    let repr = obj.repr(py).and_then(|x| x.to_string(py).and_then(|y| Ok(y.into_owned())));
     Err(JsonError::TypeError(obj.get_type(py).name(py).into_owned(), repr))
 }
 
