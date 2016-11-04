@@ -41,12 +41,20 @@ pub fn to_json(py: Python, obj: PyObject) -> Result<Value, JsonError> {
     cast!(PyDict, |x: &PyDict| {
         let mut map = BTreeMap::new();
         for (key_obj, value) in x.items(py) {
-            if let Ok(val) = key_obj.cast_as::<PyString>(py) {
-                map.insert(pytry!(val.to_string(py)).into_owned(),
-                           try!(to_json(py, value)));
-                continue;
-            }
-            return Err(JsonError::DictKeyNotString(key_obj));
+            let key = try!(if key_obj == py.None() {
+                Ok("null".to_string())
+            } else if let Ok(val) = key_obj.extract::<bool>(py) {
+                Ok(if val {
+                    "true".to_string()
+                } else {
+                    "false".to_string()
+                })
+            } else if let Ok(val) = key_obj.str(py) {
+                Ok(pytry!(val.to_string(py)).into_owned())
+            } else {
+                Err(JsonError::DictKeyNotString(key_obj))
+            });
+            map.insert(key, try!(to_json(py, value)));
         }
         Ok(Value::Object(map))
     });

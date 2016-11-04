@@ -23,3 +23,10 @@ u'\U0001f40d\U0001f980'	"\ud83d\udc0d\ud83e\udd80"
 
 dict(a="b", c="d")	{"a": "b", "c": "d"}
 [True, False]	[true, false]
+
+# Python-specific key string coercion
+{1.2: 1}	{"1.2": 1}	skip_from
+{1: 2}	{"1": 2}	skip_from
+{True: 1}	{"true": 1}	skip_from
+{False: 1}	{"false": 1}	skip_from
+{None: 1}	{"null": 1}	skip_from
