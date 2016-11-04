@@ -1,0 +1,17 @@
+[package]
+name = "cpython-json"
+version = "0.0.1"
+authors = ["Ian Weller <ianweller@buttslol.net>"]
+description = "Converts native Python objects into serde_json Values and back again"
+repository = "https://github.com/ianweller/rust-cpython-json"
+keywords = ["python"]
+license = "MIT/Apache-2.0"
+
+[dependencies]
+cpython = { git = "https://github.com/dgrunwald/rust-cpython.git", default-features = false }
+serde_json = "0.8"
+
+[features]
+default = ["python3-sys"]
+python27-sys = ["cpython/python27-sys"]
+python3-sys = ["cpython/python3-sys"]

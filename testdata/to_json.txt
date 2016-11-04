@@ -1,0 +1,25 @@
+# vim: noet
+# Python syntax, followed by a tab, followed by the JSON representation it should be.
+# Lines beginning with "#" and empty lines are ignored.
+
+# Basic supported types
+{}	{}
+[]	[]
+()	[]	skip_from
+''	""
+u''	""
+0	0
+-1	-1
+1	1
+0.1	0.1
+True	true
+False	false
+None	null
+
+# More interesting strings
+'hello'	"hello"
+u'hello'	"hello"
+u'\U0001f40d\U0001f980'	"\ud83d\udc0d\ud83e\udd80"
+
+dict(a="b", c="d")	{"a": "b", "c": "d"}
+[True, False]	[true, false]
