@@ -1,0 +1,18 @@
+language: rust
+dist: trusty
+sudo: false
+group: beta
+
+rust:
+  - stable
+  - beta
+  - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
+env:
+  - CARGO_FEATURES=python27-sys
+  - CARGO_FEATURES=python3-sys
+script:
+  - cargo build --verbose --no-default-features --features $CARGO_FEATURES
+  - cargo test --verbose --no-default-features --features $CARGO_FEATURES
