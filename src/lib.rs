@@ -69,7 +69,7 @@ pub fn to_json(py: Python, obj: PyObject) -> Result<Value, JsonError> {
     cast!(PyDict, |x: &PyDict| {
         let mut map = BTreeMap::new();
         for (key_obj, value) in x.items(py) {
-            let key = try!(if key_obj == py.None() {
+            let key = if key_obj == py.None() {
                 Ok("null".to_string())
             } else if let Ok(val) = key_obj.extract::<bool>(py) {
                 Ok(if val {
@@ -81,8 +81,8 @@ pub fn to_json(py: Python, obj: PyObject) -> Result<Value, JsonError> {
                 Ok(val.to_string(py)?.into_owned())
             } else {
                 Err(JsonError::DictKeyNotString(key_obj))
-            });
-            map.insert(key, try!(to_json(py, value)));
+            };
+            map.insert(key?, to_json(py, value)?);
         }
         Ok(Value::Object(map))
     });
@@ -128,14 +128,14 @@ pub fn from_json(py: Python, json: Value) -> Result<PyObject, JsonError> {
         Value::Array(vec) => {
             let mut elements = Vec::new();
             for item in vec {
-                elements.push(try!(from_json(py, item)));
+                elements.push(from_json(py, item)?);
             }
             Ok(PyList::new(py, &elements[..]).into_object())
         }
         Value::Object(map) => {
             let dict = PyDict::new(py);
             for (key, value) in map {
-                dict.set_item(py, key, try!(from_json(py, value)))?;
+                dict.set_item(py, key, from_json(py, value)?)?;
             }
             Ok(dict.into_object())
         }
