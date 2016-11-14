@@ -148,10 +148,11 @@ pub fn from_json(py: Python, json: Value) -> Result<PyObject, JsonError> {
 #[cfg(test)]
 mod tests {
     use cpython::*;
+    use cpython::exc::TypeError;
     use serde_json;
     use std::fs::File;
     use std::io::{BufRead, BufReader};
-    use super::{to_json, from_json};
+    use super::*;
 
     #[test]
     fn test_json() {
@@ -198,5 +199,65 @@ mod tests {
                         line[1]);
             }
         }
+    }
+
+    #[test]
+    fn test_unserializable() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        // datetime.datetime objects are not JSON serializable
+        let datetime = py.import("datetime").unwrap();
+        let min = datetime.get(py, "datetime").unwrap().getattr(py, "min").unwrap();
+        let err = to_json(py, min).unwrap_err().to_pyerr(py);
+        assert_eq!(err.ptype, TypeError::type_object(py).into_object());
+        assert_eq!(err.pvalue.unwrap().to_string(),
+                   "datetime.datetime(1, 1, 1, 0, 0) is not JSON serializable");
+        assert_eq!(err.ptraceback, None);
+    }
+
+    #[test]
+    /// The compiler already makes sure that JsonError can derive Debug, but kcov doesn't know
+    /// that. This makes JsonError's #[derive(Debug)] show as covered code.
+    fn test_jsonerror_debug() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        println!("{:?}", JsonError::DictKeyNotString(py.None()));
+    }
+
+    #[test]
+    fn test_to_pyerr_python() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let err = JsonError::PythonError(JsonError::DictKeyNotString(py.None()).to_pyerr(py))
+            .to_pyerr(py);
+        assert_eq!(err.ptype, TypeError::type_object(py).into_object());
+        assert_eq!(err.pvalue.unwrap().to_string(), "keys must be a string");
+        assert_eq!(err.ptraceback, None);
+    }
+
+    #[test]
+    fn test_to_pyerr_type_failed_repr() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let err = JsonError::TypeError("datetime.datetime".to_string(),
+                                       Err(JsonError::DictKeyNotString(py.None()).to_pyerr(py)))
+            .to_pyerr(py);
+        assert_eq!(err.ptype, TypeError::type_object(py).into_object());
+        assert_eq!(err.pvalue.unwrap().to_string(), "keys must be a string");
+        assert_eq!(err.ptraceback, None);
+    }
+
+    #[test]
+    fn test_to_pyerr_dkns() {
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+
+        let err = JsonError::DictKeyNotString(py.None()).to_pyerr(py);
+        assert_eq!(err.ptype, TypeError::type_object(py).into_object());
+        assert_eq!(err.pvalue.unwrap().to_string(), "keys must be a string");
+        assert_eq!(err.ptraceback, None);
     }
 }
