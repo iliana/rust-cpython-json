@@ -4,6 +4,7 @@ extern crate serde_json;
 use cpython::*;
 use serde_json::value::Value;
 use std::collections::BTreeMap;
+use std::convert::From;
 
 #[derive(Debug)]
 pub enum JsonError {
@@ -42,12 +43,9 @@ impl JsonError {
     }
 }
 
-macro_rules! pytry {
-    ($x:expr) => {
-        match $x {
-            Ok(val) => val,
-            Err(err) => return Err(JsonError::PythonError(err)),
-        }
+impl From<PyErr> for JsonError {
+    fn from(err: PyErr) -> JsonError {
+        JsonError::PythonError(err)
     }
 }
 
@@ -80,7 +78,7 @@ pub fn to_json(py: Python, obj: PyObject) -> Result<Value, JsonError> {
                     "false".to_string()
                 })
             } else if let Ok(val) = key_obj.str(py) {
-                Ok(pytry!(val.to_string(py)).into_owned())
+                Ok(val.to_string(py)?.into_owned())
             } else {
                 Err(JsonError::DictKeyNotString(key_obj))
             });
@@ -137,7 +135,7 @@ pub fn from_json(py: Python, json: Value) -> Result<PyObject, JsonError> {
         Value::Object(map) => {
             let dict = PyDict::new(py);
             for (key, value) in map {
-                pytry!(dict.set_item(py, key, try!(from_json(py, value))));
+                dict.set_item(py, key, try!(from_json(py, value)))?;
             }
             Ok(dict.into_object())
         }
