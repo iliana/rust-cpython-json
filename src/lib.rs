@@ -1,3 +1,69 @@
+//! cpython-json converts native Python objects (via cpython `PyObject`s) to serde_json `Value`s
+//! and back again.
+//!
+//! It was developed for [crowbar](https://crates.io/crates/crowbar), a shim for writing native
+//! Rust code in [AWS Lambda](https://aws.amazon.com/lambda/) using the Python execution
+//! environment. Because Lambda is a JSON-in, JSON-out API, all objects passing through crowbar are
+//! JSON serializable.
+//!
+//! Values are not actually converted to JSON as part of this process; serializing and
+//! deserializing JSON is slow. Instead, `PyObject`s are natively casted to a reasonably matching
+//! type of `Value`, and `PyObject`s are created directly from pattern-matching `Value`s.
+//!
+//! Data types that the Python `json` module can convert to JSON can be converted with this. (If
+//! you find something that works in the Python `json` module that doesn't work in `cpython-json`,
+//! please [file an issue](https://github.com/ianweller/rust-cpython-json/issues) with your test
+//! case.)
+//!
+//! ## Usage
+//!
+//! Add `cpython-json` to your `Cargo.toml` alongside `cpython`:
+//!
+//! ```toml
+//! [dependencies]
+//! cpython = "*"
+//! cpython-json = "0.1"
+//! ```
+//!
+//! Similar to `cpython`, Python 3 is used by default. To use Python 2:
+//!
+//! ```toml
+//! [dependencies.cpython-json]
+//! version = "0.1"
+//! default-features = false
+//! features = ["python27-sys"]
+//! ```
+//!
+//! Example code which reads `sys.hexversion` and bitbangs something resembling the version string
+//! (release level and serial not included for brevity):
+//!
+//! ```rust
+//! extern crate cpython;
+//! extern crate cpython_json;
+//! extern crate serde_json;
+//!
+//! use cpython::*;
+//! use cpython_json::to_json;
+//! use serde_json::Value;
+//!
+//! fn main() {
+//!     let gil = Python::acquire_gil();
+//!     println!("{}", version(gil.python()).expect("failed to get Python version"));
+//! }
+//!
+//! fn version(py: Python) -> PyResult<String> {
+//!     let sys = py.import("sys")?;
+//!     let py_hexversion = sys.get(py, "hexversion")?;
+//!     let hexversion = match to_json(py, &py_hexversion).map_err(|e| e.to_pyerr(py))? {
+//!         Value::U64(x) => x,
+//!         Value::I64(x) => x as u64,
+//!         _ => panic!("hexversion is not an int"),
+//!     };
+//!
+//!     Ok(format!("{}.{}.{}", hexversion >> 24, hexversion >> 16 & 0xff, hexversion >> 8 & 0xff))
+//! }
+//! ```
+
 extern crate cpython;
 extern crate serde_json;
 
@@ -6,14 +72,28 @@ use serde_json::value::Value;
 use std::collections::BTreeMap;
 use std::convert::From;
 
+/// The `Error` enum returned by this crate.
+///
+/// Most of the time you will just want a `PyErr`, and `to_pyerr` will convert to one for you.
 #[derive(Debug)]
 pub enum JsonError {
+    /// A Python exception occurred.
     PythonError(PyErr),
+    /// The PyObject passed could not be converted to a `serde_json::Value` object.
+    ///
+    /// The error tuple is the type name, then the `repr` of the object.
+    ///
+    /// This usually means that Python's `json` module wouldn't be able to serialize the object
+    /// either. If the Python `json` module works but `cpython-json` doesn't, please [file an
+    /// issue] (https://github.com/ianweller/rust-cpython-json/issues) with your test case.
     TypeError(String, PyResult<String>),
+    /// A `dict` key was not a string object, and so it couldn't be converted to an object. JSON
+    /// object keys must always be strings.
     DictKeyNotString(PyObject),
 }
 
 impl JsonError {
+    /// Convenience method for converting a `JsonError` to a `PyErr`.
     pub fn to_pyerr(&self, py: Python) -> PyErr {
         match *self {
             JsonError::PythonError(ref err) => err.clone_ref(py),
@@ -49,6 +129,7 @@ impl From<PyErr> for JsonError {
     }
 }
 
+/// Convert from a `cpython::PyObject` to a `serde_json::Value`.
 pub fn to_json(py: Python, obj: &PyObject) -> Result<Value, JsonError> {
     macro_rules! cast {
         ($t:ty, $f:expr) => {
@@ -109,6 +190,7 @@ pub fn to_json(py: Python, obj: &PyObject) -> Result<Value, JsonError> {
     Err(JsonError::TypeError(obj.get_type(py).name(py).into_owned(), repr))
 }
 
+/// Convert from a `serde_json::Value` to a `cpython::PyObject`.
 pub fn from_json(py: Python, json: Value) -> Result<PyObject, JsonError> {
     macro_rules! obj {
         ($x:ident) => {
