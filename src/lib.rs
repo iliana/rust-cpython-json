@@ -49,7 +49,7 @@ impl From<PyErr> for JsonError {
     }
 }
 
-pub fn to_json(py: Python, obj: PyObject) -> Result<Value, JsonError> {
+pub fn to_json(py: Python, obj: &PyObject) -> Result<Value, JsonError> {
     macro_rules! cast {
         ($t:ty, $f:expr) => {
             if let Ok(val) = obj.cast_as::<$t>(py) {
@@ -82,18 +82,15 @@ pub fn to_json(py: Python, obj: PyObject) -> Result<Value, JsonError> {
             } else {
                 Err(JsonError::DictKeyNotString(key_obj))
             };
-            map.insert(key?, to_json(py, value)?);
+            map.insert(key?, to_json(py, &value)?);
         }
         Ok(Value::Object(map))
     });
 
-    macro_rules! to_vec {
-        ($t:ty) => {
-            |x: &$t| Ok(Value::Array(try!(x.iter(py).map(|x| to_json(py, x)).collect())));
-        }
-    }
-    cast!(PyList, to_vec!(PyList));
-    cast!(PyTuple, to_vec!(PyTuple));
+    cast!(PyList,
+          |x: &PyList| Ok(Value::Array(try!(x.iter(py).map(|x| to_json(py, &x)).collect()))));
+    cast!(PyTuple,
+          |x: &PyTuple| Ok(Value::Array(try!(x.iter(py).map(|x| to_json(py, x)).collect()))));
 
     extract!(String);
     extract!(bool);
@@ -103,7 +100,7 @@ pub fn to_json(py: Python, obj: PyObject) -> Result<Value, JsonError> {
     extract!(u64);
     extract!(i64);
 
-    if obj == py.None() {
+    if obj == &py.None() {
         return Ok(Value::Null);
     }
 
@@ -176,7 +173,7 @@ mod tests {
             let json = serde_json::from_str(line[1]).unwrap();
             if !line[2].contains("skip_to") {
                 let obj = py.eval(line[0], None, None).unwrap();
-                assert_eq!(to_json(py, obj).unwrap(),
+                assert_eq!(to_json(py, &obj).unwrap(),
                            json,
                            "to_json: {} != {}",
                            line[0],
@@ -207,7 +204,7 @@ mod tests {
         // datetime.datetime objects are not JSON serializable
         let datetime = py.import("datetime").unwrap();
         let min = datetime.get(py, "datetime").unwrap().getattr(py, "min").unwrap();
-        let err = to_json(py, min).unwrap_err().to_pyerr(py);
+        let err = to_json(py, &min).unwrap_err().to_pyerr(py);
         assert_eq!(err.ptype, TypeError::type_object(py).into_object());
         assert_eq!(err.pvalue.unwrap().to_string(),
                    "datetime.datetime(1, 1, 1, 0, 0) is not JSON serializable");
