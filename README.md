@@ -1,5 +1,9 @@
-rust-cpython-json [![Build Status](https://travis-ci.org/ianweller/rust-cpython-json.svg?branch=master)](https://travis-ci.org/ianweller/rust-cpython-json)
+rust-cpython-json
 =================
+
+[![crates.io](https://img.shields.io/crates/v/cpython-json.svg)](https://crates.io/crates/cpython-json)
+[![docs.rs](https://docs.rs/cpython-json/badge.svg)](https://docs.rs/cpython-json)
+[![Build Status](https://travis-ci.org/ianweller/rust-cpython-json.svg?branch=master)](https://travis-ci.org/ianweller/rust-cpython-json)
 
 cpython-json converts native Python objects (via [cpython](https://crates.io/crates/cpython) `PyObject`s) to [serde_json](https://crates.io/crates/serde_json) `Value`s and back again.  
 
