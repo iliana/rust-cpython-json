@@ -3,7 +3,7 @@ rust-cpython-json
 
 [![crates.io](https://img.shields.io/crates/v/cpython-json.svg)](https://crates.io/crates/cpython-json)
 [![docs.rs](https://docs.rs/cpython-json/badge.svg)](https://docs.rs/cpython-json)
-[![Build Status](https://travis-ci.org/ianweller/rust-cpython-json.svg?branch=master)](https://travis-ci.org/ianweller/rust-cpython-json)
+[![Build Status](https://travis-ci.org/ilianaw/rust-cpython-json.svg?branch=master)](https://travis-ci.org/ilianaw/rust-cpython-json)
 
 cpython-json converts native Python objects (via [cpython](https://crates.io/crates/cpython) `PyObject`s) to [serde_json](https://crates.io/crates/serde_json) `Value`s and back again.  
 
@@ -11,7 +11,7 @@ It was developed for [crowbar](https://crates.io/crates/crowbar), a shim for wri
 
 Values are not actually converted to JSON as part of this process; serializing and deserializing JSON is slow. Instead, `PyObject`s are natively casted to a reasonably matching type of `Value`, and `PyObject`s are created directly from pattern-matching `Value`s.
 
-Data types that the Python `json` module can convert to JSON can be converted with this. (If you find something that works in the Python `json` module that doesn't work in `cpython-json`, please [file an issue](https://github.com/ianweller/rust-cpython-json/issues) with your test case.)
+Data types that the Python `json` module can convert to JSON can be converted with this. (If you find something that works in the Python `json` module that doesn't work in `cpython-json`, please [file an issue](https://github.com/ilianaw/rust-cpython-json/issues) with your test case.)
 
 ## Usage
 

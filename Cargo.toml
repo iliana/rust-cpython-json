@@ -1,10 +1,10 @@
 [package]
 name = "cpython-json"
-version = "0.1.0"
-authors = ["Ian Weller <ianweller@buttslol.net>"]
+version = "0.1.1"
+authors = ["Iliana Weller <ilianaw@buttslol.net>"]
 description = "Converts native Python objects into serde_json Values and back again"
 readme = "README.md"
-repository = "https://github.com/ianweller/rust-cpython-json"
+repository = "https://github.com/ilianaw/rust-cpython-json"
 documentation = "https://docs.rs/cpython-json"
 keywords = ["python", "json"]
 license = "MIT/Apache-2.0"

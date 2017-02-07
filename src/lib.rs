@@ -12,7 +12,7 @@
 //!
 //! Data types that the Python `json` module can convert to JSON can be converted with this. (If
 //! you find something that works in the Python `json` module that doesn't work in `cpython-json`,
-//! please [file an issue](https://github.com/ianweller/rust-cpython-json/issues) with your test
+//! please [file an issue](https://github.com/ilianaw/rust-cpython-json/issues) with your test
 //! case.)
 //!
 //! ## Usage
@@ -85,7 +85,7 @@ pub enum JsonError {
     ///
     /// This usually means that Python's `json` module wouldn't be able to serialize the object
     /// either. If the Python `json` module works but `cpython-json` doesn't, please [file an
-    /// issue] (https://github.com/ianweller/rust-cpython-json/issues) with your test case.
+    /// issue] (https://github.com/ilianaw/rust-cpython-json/issues) with your test case.
     TypeError(String, PyResult<String>),
     /// A `dict` key was not a string object, and so it couldn't be converted to an object. JSON
     /// object keys must always be strings.
