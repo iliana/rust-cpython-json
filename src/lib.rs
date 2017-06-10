@@ -65,6 +65,8 @@
 //! ```
 
 extern crate cpython;
+#[macro_use]
+extern crate quick_error;
 extern crate serde_json;
 
 use cpython::*;
@@ -72,24 +74,28 @@ use serde_json::value::Value;
 use std::collections::BTreeMap;
 use std::convert::From;
 
-/// The `Error` enum returned by this crate.
-///
-/// Most of the time you will just want a `PyErr`, and `to_pyerr` will convert to one for you.
-#[derive(Debug)]
-pub enum JsonError {
-    /// A Python exception occurred.
-    PythonError(PyErr),
-    /// The PyObject passed could not be converted to a `serde_json::Value` object.
+quick_error! {
+    /// The `Error` enum returned by this crate.
     ///
-    /// The error tuple is the type name, then the `repr` of the object.
-    ///
-    /// This usually means that Python's `json` module wouldn't be able to serialize the object
-    /// either. If the Python `json` module works but `cpython-json` doesn't, please [file an
-    /// issue] (https://github.com/ilianaw/rust-cpython-json/issues) with your test case.
-    TypeError(String, PyResult<String>),
-    /// A `dict` key was not a string object, and so it couldn't be converted to an object. JSON
-    /// object keys must always be strings.
-    DictKeyNotString(PyObject),
+    /// Most of the time you will just want a `PyErr`, and `to_pyerr` will convert to one for you.
+    #[derive(Debug)]
+    pub enum JsonError {
+        /// A Python exception occurred.
+        PythonError(err: PyErr) {
+            from()
+        }
+        /// The PyObject passed could not be converted to a `serde_json::Value` object.
+        ///
+        /// The error tuple is the type name, then the `repr` of the object.
+        ///
+        /// This usually means that Python's `json` module wouldn't be able to serialize the object
+        /// either. If the Python `json` module works but `cpython-json` doesn't, please [file an
+        /// issue] (https://github.com/ilianaw/rust-cpython-json/issues) with your test case.
+        TypeError(type_name: String, repr: PyResult<String>) {}
+        /// A `dict` key was not a string object, and so it couldn't be converted to an object. JSON
+        /// object keys must always be strings.
+        DictKeyNotString(obj: PyObject) {}
+    }
 }
 
 impl JsonError {
@@ -120,12 +126,6 @@ impl JsonError {
                 }
             }
         }
-    }
-}
-
-impl From<PyErr> for JsonError {
-    fn from(err: PyErr) -> JsonError {
-        JsonError::PythonError(err)
     }
 }
 
