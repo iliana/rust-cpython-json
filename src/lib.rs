@@ -1,4 +1,4 @@
-//! cpython-json converts native Python objects (via cpython `PyObject`s) to serde_json `Value`s
+//! cpython-json converts native Python objects (via cpython `PyObject`s) to `serde_json::Value`s
 //! and back again.
 //!
 //! It was developed for [crowbar](https://crates.io/crates/crowbar), a shim for writing native
@@ -55,8 +55,7 @@
 //!     let sys = py.import("sys")?;
 //!     let py_hexversion = sys.get(py, "hexversion")?;
 //!     let hexversion = match to_json(py, &py_hexversion).map_err(|e| e.to_pyerr(py))? {
-//!         Value::U64(x) => x,
-//!         Value::I64(x) => x as u64,
+//!         Value::Number(x) => x.as_i64().expect("hexversion is not an int"),
 //!         _ => panic!("hexversion is not an int"),
 //!     };
 //!
@@ -71,7 +70,6 @@ extern crate serde_json;
 
 use cpython::*;
 use serde_json::value::Value;
-use std::collections::BTreeMap;
 use std::convert::From;
 
 quick_error! {
@@ -84,7 +82,13 @@ quick_error! {
         PythonError(err: PyErr) {
             from()
         }
-        /// The PyObject passed could not be converted to a `serde_json::Value` object.
+        /// The PyObject passed could not be converted to a `serde_json::Value` because of a
+        /// `serde_json` error.
+        SerdeJsonError(err: serde_json::Error) {
+            from()
+        }
+        /// The PyObject passed could not be converted to a `serde_json::Value` object because we
+        /// didn't recognize it as a valid JSON-supported type.
         ///
         /// The error tuple is the type name, then the `repr` of the object.
         ///
@@ -95,6 +99,11 @@ quick_error! {
         /// A `dict` key was not a string object, and so it couldn't be converted to an object. JSON
         /// object keys must always be strings.
         DictKeyNotString(obj: PyObject) {}
+        /// A number provided is not a valid JSON float (infinite and NaN values are not supported
+        /// in JSON).
+        InvalidFloat {}
+        /// The serde_json crate lied to us and a `Number` is neither u64, i64, or f64.
+        ImpossibleNumber {}
     }
 }
 
@@ -103,6 +112,13 @@ impl JsonError {
     pub fn to_pyerr(&self, py: Python) -> PyErr {
         match *self {
             JsonError::PythonError(ref err) => err.clone_ref(py),
+            JsonError::SerdeJsonError(_) => {
+                PyErr {
+                    ptype: cpython::exc::RuntimeError::type_object(py).into_object(),
+                    pvalue: Some(PyString::new(py, "serde_json error").into_object()),
+                    ptraceback: None,
+                }
+            }
             JsonError::TypeError(_, ref repr) => {
                 match *repr {
                     Ok(ref repr) => {
@@ -125,6 +141,20 @@ impl JsonError {
                     ptraceback: None,
                 }
             }
+            JsonError::InvalidFloat => {
+                PyErr {
+                    ptype: cpython::exc::ValueError::type_object(py).into_object(),
+                    pvalue: Some(PyString::new(py, "inf and nan are not supported in JSON").into_object()),
+                    ptraceback: None,
+                }
+            }
+            JsonError::ImpossibleNumber => {
+                PyErr {
+                    ptype: cpython::exc::ValueError::type_object(py).into_object(),
+                    pvalue: Some(PyString::new(py, "a value was somehow not an integer or float").into_object()),
+                    ptraceback: None,
+                }
+            }
         }
     }
 }
@@ -142,13 +172,13 @@ pub fn to_json(py: Python, obj: &PyObject) -> Result<Value, JsonError> {
     macro_rules! extract {
         ($t:ty) => {
             if let Ok(val) = obj.extract::<$t>(py) {
-                return Ok(serde_json::value::to_value(val));
+                return serde_json::value::to_value(val).map_err(JsonError::SerdeJsonError);
             }
         }
     }
 
     cast!(PyDict, |x: &PyDict| {
-        let mut map = BTreeMap::new();
+        let mut map = serde_json::Map::new();
         for (key_obj, value) in x.items(py) {
             let key = if key_obj == py.None() {
                 Ok("null".to_string())
@@ -176,7 +206,11 @@ pub fn to_json(py: Python, obj: &PyObject) -> Result<Value, JsonError> {
     extract!(String);
     extract!(bool);
 
-    cast!(PyFloat, |x: &PyFloat| Ok(Value::F64(x.value(py))));
+    cast!(PyFloat,
+          |x: &PyFloat| match serde_json::Number::from_f64(x.value(py)) {
+              Some(n) => Ok(Value::Number(n)),
+              None => Err(JsonError::InvalidFloat),
+          });
 
     extract!(u64);
     extract!(i64);
@@ -200,9 +234,18 @@ pub fn from_json(py: Python, json: Value) -> Result<PyObject, JsonError> {
     }
 
     match json {
-        Value::I64(x) => obj!(x),
-        Value::U64(x) => obj!(x),
-        Value::F64(x) => obj!(x),
+        Value::Number(x) => {
+            if let Some(n) = x.as_u64() {
+                obj!(n)
+            } else if let Some(n) = x.as_i64() {
+                obj!(n)
+            } else if let Some(n) = x.as_f64() {
+                obj!(n)
+            } else {
+                // We should never get to this point
+                Err(JsonError::ImpossibleNumber)
+            }
+        }
         Value::String(x) => Ok(PyUnicode::new(py, &x).into_object()),
         Value::Bool(x) => obj!(x),
         Value::Array(vec) => {
