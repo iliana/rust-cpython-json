@@ -110,8 +110,8 @@ impl JsonError {
                             ptype: cpython::exc::TypeError::type_object(py).into_object(),
                             pvalue: Some(PyUnicode::new(py,
                                                         &format!("{} is not JSON serializable",
-                                                                 repr))
-                                .into_object()),
+                                                                repr))
+                                                 .into_object()),
                             ptraceback: None,
                         }
                     }
@@ -154,10 +154,10 @@ pub fn to_json(py: Python, obj: &PyObject) -> Result<Value, JsonError> {
                 Ok("null".to_string())
             } else if let Ok(val) = key_obj.extract::<bool>(py) {
                 Ok(if val {
-                    "true".to_string()
-                } else {
-                    "false".to_string()
-                })
+                       "true".to_string()
+                   } else {
+                       "false".to_string()
+                   })
             } else if let Ok(val) = key_obj.str(py) {
                 Ok(val.to_string(py)?.into_owned())
             } else {
@@ -186,7 +186,8 @@ pub fn to_json(py: Python, obj: &PyObject) -> Result<Value, JsonError> {
     }
 
     // At this point we can't cast it, set up the error object
-    let repr = obj.repr(py).and_then(|x| x.to_string(py).and_then(|y| Ok(y.into_owned())));
+    let repr = obj.repr(py)
+        .and_then(|x| x.to_string(py).and_then(|y| Ok(y.into_owned())));
     Err(JsonError::TypeError(obj.get_type(py).name(py).into_owned(), repr))
 }
 
@@ -265,7 +266,8 @@ mod tests {
             // test from_json
             if !line[2].contains("skip_from") {
                 let obj = py.eval(line[0], None, None).unwrap();
-                let eq = operator.call(py,
+                let eq = operator
+                    .call(py,
                           "__eq__",
                           PyTuple::new(py, &[from_json(py, json).unwrap(), obj]),
                           None)
@@ -285,7 +287,11 @@ mod tests {
 
         // datetime.datetime objects are not JSON serializable
         let datetime = py.import("datetime").unwrap();
-        let min = datetime.get(py, "datetime").unwrap().getattr(py, "min").unwrap();
+        let min = datetime
+            .get(py, "datetime")
+            .unwrap()
+            .getattr(py, "min")
+            .unwrap();
         let err = to_json(py, &min).unwrap_err().to_pyerr(py);
         assert_eq!(err.ptype, TypeError::type_object(py).into_object());
         assert_eq!(err.pvalue.unwrap().to_string(),
@@ -321,7 +327,7 @@ mod tests {
 
         let err = JsonError::TypeError("datetime.datetime".to_string(),
                                        Err(JsonError::DictKeyNotString(py.None()).to_pyerr(py)))
-            .to_pyerr(py);
+                .to_pyerr(py);
         assert_eq!(err.ptype, TypeError::type_object(py).into_object());
         assert_eq!(err.pvalue.unwrap().to_string(), "keys must be a string");
         assert_eq!(err.ptraceback, None);
