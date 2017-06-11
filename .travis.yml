@@ -10,11 +10,21 @@ rust:
 matrix:
   allow_failures:
     - rust: nightly
+    - env: "CARGO_FEATURES=python3-sys PYENV_VERSION=3.7-dev"
 env:
-  - CARGO_FEATURES=python27-sys PYTHON_SYS_EXECUTABLE=python2
-  - CARGO_FEATURES=python3-sys PYTHON_SYS_EXECUTABLE=python3
+  - CARGO_FEATURES=python27-sys PYENV_VERSION=2.7.13
+  - CARGO_FEATURES=python3-sys PYENV_VERSION=3.3.6
+  - CARGO_FEATURES=python3-sys PYENV_VERSION=3.4.6
+  - CARGO_FEATURES=python3-sys PYENV_VERSION=3.5.3
+  - CARGO_FEATURES=python3-sys PYENV_VERSION=3.6.1
+  - CARGO_FEATURES=python3-sys PYENV_VERSION=3.7-dev
 before_script:
-  - 'export LD_LIBRARY_PATH="$($PYTHON_SYS_EXECUTABLE -c "import sysconfig; print(sysconfig.get_config_var(''LIBDIR''))"):$LD_LIBRARY_PATH"'
+  - export PYENV_ROOT=$HOME/.pyenv-latest
+  - export PATH=$PYENV_ROOT/bin:$PATH
+  - git clone https://github.com/pyenv/pyenv.git $PYENV_ROOT
+  - 'eval "$(pyenv init -)"'
+  - pyenv install $PYENV_VERSION
+  - 'export LD_LIBRARY_PATH="$(python -c "import sysconfig; print(sysconfig.get_config_var(''LIBDIR''))"):$LD_LIBRARY_PATH"'
 script:
   - cargo build --verbose --no-default-features --features $CARGO_FEATURES
   - cargo test --verbose --no-default-features --features $CARGO_FEATURES
