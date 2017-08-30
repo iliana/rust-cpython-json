@@ -10,6 +10,9 @@ keywords = ["python", "json"]
 license = "MIT/Apache-2.0"
 exclude = [".gitignore", ".travis.yml"]
 
+[badges]
+travis-ci = { repository = "ilianaw/rust-cpython-json", branch = "master" }
+
 [dependencies]
 quick-error = "1.2"
 serde_json = "1.0"
