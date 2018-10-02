@@ -1,6 +1,6 @@
 [package]
 name = "cpython-json"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Iliana Weller <ilianaw@buttslol.net>"]
 description = "Converts native Python objects into serde_json Values and back again"
 readme = "README.md"
@@ -18,7 +18,7 @@ quick-error = "1.2"
 serde_json = "1.0"
 
 [dependencies.cpython]
-version = "0.1"
+version = "0.2"
 default-features = false
 
 [features]

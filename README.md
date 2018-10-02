@@ -20,14 +20,14 @@ Add `cpython-json` to your `Cargo.toml` alongside `cpython`:
 ```toml
 [dependencies]
 cpython = "*"
-cpython-json = "0.1"
+cpython-json = "0.3"
 ```
 
 Similar to `cpython`, Python 3 is used by default. To use Python 2:
 
 ```toml
 [dependencies.cpython-json]
-version = "0.1"
+version = "0.3"
 default-features = false
 features = ["python27-sys"]
 ```
